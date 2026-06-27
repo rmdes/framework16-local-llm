@@ -61,14 +61,47 @@ bin/llama-go --chat               # interactive terminal chat
 bin/llama-go -m 3b --prompt "hi"  # one-shot with the 3B model
 bin/llama-bench-shootout 3b 7b 14b  # re-run the size sweep
 
-systemctl --user {status,restart,stop} llama   # manage the service
+bin/llama-vulkan-mode             # temp-swap to Vulkan :8081, restore ROCm service on exit
+systemctl --user {status,restart,stop} llama   # manage the always-on service
 ```
+
+## Use from opencode (or any OpenAI-compatible client)
+
+The server speaks the OpenAI API at `/v1`, so any compatible client works (opencode,
+Open WebUI, the `openai` SDKs, Continue, …). Register both backends as providers, each
+pointed at its port. For opencode, add to `~/.config/opencode/opencode.json`:
+
+```jsonc
+{
+  "provider": {
+    "llama-rocm": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "llama.cpp ROCm (RX 7700S · long-context)",
+      "options": { "baseURL": "http://127.0.0.1:8080/v1", "apiKey": "local" },
+      "models": { "qwen2.5-7b": { "name": "Qwen2.5-7B · ROCm :8080 (always-on)" } }
+    },
+    "llama-vulkan": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "llama.cpp Vulkan (RX 7700S · fast chat)",
+      "options": { "baseURL": "http://127.0.0.1:8081/v1", "apiKey": "local" },
+      "models": { "qwen2.5-7b": { "name": "Qwen2.5-7B · Vulkan :8081 (on-demand)" } }
+    }
+  }
+}
+```
+
+- `llama-rocm` (`:8080`) is the always-on systemd service — available immediately.
+- `llama-vulkan` (`:8081`) is on-demand: run `bin/llama-vulkan-mode` first. It frees the GPU
+  from ROCm (8 GB fits only one 7B at a time) and restores the service when you exit.
+- The `model` id is just a label — llama-server serves whatever GGUF it has loaded; `apiKey`
+  is a required-but-ignored placeholder.
 
 ## Layout
 
 ```
 setup.sh                 one-shot installer (deps|build|model|service|doctor)
 bin/llama-go             daily-driver launcher (backend + model + pinning)
+bin/llama-vulkan-mode    temp-swap to Vulkan on :8081, auto-restore ROCm service
 bin/llama-bench-shootout ROCm-vs-Vulkan benchmark
 bin/_common.sh           shared config, paths, GPU pinning, model catalog
 config/models.conf       model catalog with measured ngl recommendations

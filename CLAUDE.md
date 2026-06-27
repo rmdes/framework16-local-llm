@@ -10,6 +10,7 @@ A thin, measured packaging of llama.cpp for the Framework 16 + Radeon RX 7700S (
 
 - `bin/_common.sh` — sourced by everything. Owns: path resolution (`FW16_HOME`, `MODELS_DIR`, `LLAMA_SRC`, build dirs), GPU pinning (`hip_idx`, `vk_dev`), model-catalog lookup, and `ensure_binary` (the canonical build recipe). **Change build flags or pinning here, nowhere else.**
 - `bin/llama-go` — launcher. Maps workload → backend/model, then pins and runs `llama-server`/`llama-cli`.
+- `bin/llama-vulkan-mode` — convenience wrapper: stop ROCm service → run Vulkan on `:8081` → restore the service on exit (trap, NOT exec'd so the trap survives). For opencode's on-demand `llama-vulkan` provider.
 - `bin/llama-bench-shootout` — benchmark harness.
 - `config/models.conf` — the model catalog: `key|filename|url|ngl|note`. `ngl` values are **measured**, not guessed.
 - `systemd/llama.service.in` — `@PLACEHOLDER@` template; `setup.sh service` substitutes absolute paths.
