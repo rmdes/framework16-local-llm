@@ -1,0 +1,10 @@
+# models and builds live under FW16_HOME, never in git
+*.gguf
+build-rocm/
+build-vulkan/
+llama.cpp/
+bench-results/
+*.log
+
+# local machine config (paths point at FW16_HOME / MODELS_DIR)
+/config/local.conf

@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+# llama-go — daily-driver launcher for local LLMs on the Framework 16 (RX 7700S, gfx1102).
+# Picks backend by workload: vulkan = faster token-gen (chat), rocm = faster prompt-proc (long ctx).
+# Auto-builds the needed binary and auto-pins to the discrete GPU.
+#
+#   llama-go                      # Vulkan server on :8080 (default; best for chat)
+#   llama-go -b rocm -c 32768     # ROCm server, 32k context (best for RAG/long prompts)
+#   llama-go --chat               # interactive terminal chat (Vulkan)
+#   llama-go --prompt "explain X" # one-shot generation, prints and exits
+#   llama-go -m 3b --chat         # use a catalog model (3b|7b|14b) or a .gguf path
+set -euo pipefail
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/_common.sh"
+
+BACKEND="vulkan"; MODE="server"; MODEL_KEY="7b"
+CTX=""; PORT="8080"; HOST="127.0.0.1"; NGL=""; PROMPT=""
+
+while [ $# -gt 0 ]; do case "$1" in
+  -b|--backend) BACKEND="$2"; shift 2;;
+  -m|--model)   MODEL_KEY="$2"; shift 2;;
+  -c|--ctx)     CTX="$2"; shift 2;;
+  -p|--port)    PORT="$2"; shift 2;;
+  --host)       HOST="$2"; shift 2;;
+  -ngl)         NGL="$2"; shift 2;;
+  --chat)       MODE="chat"; shift;;
+  --prompt)     MODE="prompt"; PROMPT="$2"; shift 2;;
+  -h|--help)    sed -n '2,13p' "$0"; exit 0;;
+  *) die "unknown arg: $1";;
+esac; done
+
+case "$BACKEND" in vulkan|rocm) ;; *) die "backend must be vulkan|rocm";; esac
+MODEL="$(model_path "$MODEL_KEY")"; [ -f "$MODEL" ] || die "model not found: $MODEL (run: setup.sh model $MODEL_KEY)"
+[ -z "$NGL" ] && NGL="$(model_ngl "$MODEL_KEY")"          # catalog default (99 full, 44 for 14b…)
+[ -z "$CTX" ] && { [ "$BACKEND" = rocm ] && CTX=32768 || CTX=8192; }
+BDIR="$(build_dir "$BACKEND")"
+
+TOOL="llama-server"; [ "$MODE" = server ] || TOOL="llama-cli"
+ensure_binary "$BACKEND" "$TOOL"
+
+# device-pinning preamble per backend
+pin_run(){  # $@ = full binary + args
+  if [ "$BACKEND" = rocm ]; then
+    HIP_VISIBLE_DEVICES="$(hip_idx)" ROCR_VISIBLE_DEVICES="$(hip_idx)" exec "$@"
+  else
+    exec "$@" -dev "$(vk_dev "$BDIR/bin/$TOOL")"
+  fi
+}
+
+if [ "$MODE" = server ]; then
+  say "$BACKEND llama-server  model=$MODEL_KEY  ngl=$NGL  ctx=$CTX  http://$HOST:$PORT  (OpenAI API /v1)"
+  pin_run "$BDIR/bin/llama-server" -m "$MODEL" -ngl "$NGL" -c "$CTX" --host "$HOST" --port "$PORT" --jinja
+else
+  args=(-m "$MODEL" -ngl "$NGL" -c "$CTX")
+  [ "$MODE" = chat ] && args+=(-cnv) || args+=(-no-cnv -p "$PROMPT")
+  pin_run "$BDIR/bin/llama-cli" "${args[@]}"
+fi

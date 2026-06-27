@@ -1,0 +1,19 @@
+[Unit]
+Description=llama.cpp server (@BACKEND@ / RX 7700S gfx1102) — local LLM, OpenAI-compatible at :@PORT@
+Documentation=https://github.com/ggml-org/llama.cpp
+After=network-online.target
+Wants=network-online.target
+# Stop a crash-loop from hammering the GPU forever: give up after 5 failures in 120s.
+StartLimitIntervalSec=120
+StartLimitBurst=5
+
+[Service]
+Type=exec
+# llama-go handles discrete-GPU pinning (gfx1102) internally and then launches the server.
+ExecStart=@LLAMAGO@ -b @BACKEND@ -m @MODEL@ -c @CTX@ --port @PORT@
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# llama-bench-shootout — ROCm vs Vulkan throughput on the Framework 16 dGPU (gfx1102).
+# Runs llama-bench for each model on BOTH backends, pinned to the discrete GPU.
+#
+#   llama-bench-shootout                 # default: 7b, both backends
+#   llama-bench-shootout 3b 7b 14b       # sweep model sizes
+#   PP=512,4096 llama-bench-shootout 7b  # custom prompt-processing sizes
+# Env: PP (default 512), TG (default 128), REPS (default 3).
+set -euo pipefail
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/_common.sh"
+
+PP="${PP:-512}"; TG="${TG:-128}"; REPS="${REPS:-3}"
+RESULTS="${RESULTS:-$FW16_HOME/bench-results}"; mkdir -p "$RESULTS"
+MODELS=("${@:-7b}")
+STAMP="$(date +%Y%m%d-%H%M%S 2>/dev/null || echo run)"
+
+bench_one(){  # backend  model_path  ngl
+  local backend="$1" m="$2" ngl="$3" bdir; bdir="$(build_dir "$backend")"
+  ensure_binary "$backend" llama-bench >/dev/null 2>&1 || ensure_binary "$backend" llama-bench
+  if [ "$backend" = rocm ]; then
+    HIP_VISIBLE_DEVICES="$(hip_idx)" ROCR_VISIBLE_DEVICES="$(hip_idx)" \
+      "$bdir/bin/llama-bench" -m "$m" -p "$PP" -n "$TG" -ngl "$ngl" -r "$REPS" -o md 2>/dev/null
+  else
+    "$bdir/bin/llama-bench" -m "$m" -p "$PP" -n "$TG" -ngl "$ngl" -r "$REPS" \
+      -dev "$(vk_dev "$bdir/bin/llama-bench")" -o md 2>/dev/null
+  fi
+}
+
+for key in "${MODELS[@]}"; do
+  m="$(model_path "$key")"; ngl="$(model_ngl "$key")"
+  [ -f "$m" ] || { echo "skip $key — not downloaded ($m)"; continue; }
+  for backend in rocm vulkan; do
+    say "$key / $backend / ngl=$ngl / pp=$PP tg=$TG"
+    out="$RESULTS/${key}-${backend}-${STAMP}.md"
+    bench_one "$backend" "$m" "$ngl" | tee "$out" | grep -E '^\| (qwen|model|---)'
+  done
+done
+say "results saved under $RESULTS"
