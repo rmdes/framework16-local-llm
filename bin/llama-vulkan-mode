@@ -26,4 +26,4 @@ echo "==> starting Vulkan server on :8081 @ 32k ctx (Ctrl-C to stop and return t
 # system prompts + tool schemas, so the 8k default compaction-loops. -c is first
 # so a user-supplied -c in "$@" still wins.
 # NOT exec'd, so the trap survives to restore the service on exit.
-"$HERE/llama-go" -b vulkan -p 8081 -c 32768 "$@"
+"$HERE/llama-go" -b vulkan -p 8081 -m coder-7b -c 32768 "$@"
