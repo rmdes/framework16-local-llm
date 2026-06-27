@@ -78,13 +78,13 @@ pointed at its port. For opencode, add to `~/.config/opencode/opencode.json`:
       "npm": "@ai-sdk/openai-compatible",
       "name": "llama.cpp ROCm (RX 7700S · long-context)",
       "options": { "baseURL": "http://127.0.0.1:8080/v1", "apiKey": "local" },
-      "models": { "qwen2.5-7b": { "name": "Qwen2.5-7B · ROCm :8080 (always-on)" } }
+      "models": { "qwen2.5-7b": { "name": "Qwen2.5-7B · ROCm :8080 (always-on)", "limit": { "context": 32768, "output": 4096 } } }
     },
     "llama-vulkan": {
       "npm": "@ai-sdk/openai-compatible",
       "name": "llama.cpp Vulkan (RX 7700S · fast chat)",
       "options": { "baseURL": "http://127.0.0.1:8081/v1", "apiKey": "local" },
-      "models": { "qwen2.5-7b": { "name": "Qwen2.5-7B · Vulkan :8081 (on-demand)" } }
+      "models": { "qwen2.5-7b": { "name": "Qwen2.5-7B · Vulkan :8081 (on-demand)", "limit": { "context": 32768, "output": 4096 } } }
     }
   }
 }
@@ -95,6 +95,10 @@ pointed at its port. For opencode, add to `~/.config/opencode/opencode.json`:
   from ROCm (8 GB fits only one 7B at a time) and restores the service when you exit.
 - The `model` id is just a label — llama-server serves whatever GGUF it has loaded; `apiKey`
   is a required-but-ignored placeholder.
+- **`limit.context` is essential.** Agentic clients inject huge system prompts + tool schemas;
+  without a declared context limit, opencode assumes a tiny window and **compaction-loops** even
+  on a one-line question. Match it to the server's `-c` (the service runs 32768). Restart opencode
+  and start a fresh session after editing the config.
 
 ## Layout
 

@@ -54,7 +54,7 @@ cmd_model(){
 
 # ---- systemd --user service -------------------------------------------------
 cmd_service(){
-  local BACKEND=rocm MODEL=7b CTX=16384 PORT=8080
+  local BACKEND=rocm MODEL=7b CTX=32768 PORT=8080   # 32k: agentic clients (opencode) need headroom or they compaction-loop
   while [ $# -gt 0 ]; do case "$1" in
     -b) BACKEND="$2"; shift 2;; -m) MODEL="$2"; shift 2;;
     -c) CTX="$2"; shift 2;; -p) PORT="$2"; shift 2;; *) shift;;

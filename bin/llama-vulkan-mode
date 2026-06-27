@@ -21,6 +21,9 @@ trap restore INT TERM EXIT
 echo "==> stopping ROCm service ($SERVICE) to free VRAM…"
 systemctl --user stop "$SERVICE" 2>/dev/null || true
 
-echo "==> starting Vulkan server (Ctrl-C to stop and return to ROCm)…"
+echo "==> starting Vulkan server on :8081 @ 32k ctx (Ctrl-C to stop and return to ROCm)…"
+# 32k context matches the opencode `limit.context`; agentic clients inject huge
+# system prompts + tool schemas, so the 8k default compaction-loops. -c is first
+# so a user-supplied -c in "$@" still wins.
 # NOT exec'd, so the trap survives to restore the service on exit.
-"$HERE/llama-go" -b vulkan -p 8081 "$@"
+"$HERE/llama-go" -b vulkan -p 8081 -c 32768 "$@"
