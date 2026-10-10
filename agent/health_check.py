@@ -22,6 +22,7 @@ CHECKS = [  # (title, command) — every one read-only
     ("Failed user units", "systemctl --user --failed --no-legend --plain"),
     ("Errors in the journal (last 24h, newest 30)", "journalctl -p err --since -24h --no-pager -q -o short | tail -n 30"),
     ("Pending updates", "dnf check-update -q --cacheonly | grep -c '\\.' || true"),
+    ("Pending Flatpak updates", "flatpak remote-ls --updates | wc -l"),
     ("Pending security advisories", "dnf updateinfo list --security -q --cacheonly | head -n 20"),
     ("Reboot needed", "dnf needs-restarting -r 2>&1 | tail -n 3"),
     ("Running vs newest installed kernel", "echo running $(uname -r); rpm -q kernel --last | head -n 1"),

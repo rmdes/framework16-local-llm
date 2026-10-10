@@ -92,6 +92,9 @@ permission:
     "flatpak info *": allow
     "flatpak remotes*": allow
     "flatpak history*": allow
+    "flatpak remote-ls *": allow
+    "fwupdmgr get-updates*": allow
+    "fwupdmgr get-devices*": allow
     "snapper list*": allow
     "snapper list-configs*": allow
     "btrfs filesystem usage *": allow
