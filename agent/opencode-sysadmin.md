@@ -54,6 +54,7 @@ permission:
     "sestatus *": allow
     "getenforce": allow
     "which *": allow
+    "getent *": allow
     # logs & services
     "journalctl *": allow
     "dmesg *": allow
@@ -103,6 +104,17 @@ permission:
     "podman ps*": allow
     "podman images*": allow
     "podman system df*": allow
+    "docker ps*": allow
+    "docker info*": allow
+    "docker network ls*": allow
+    "firewall-cmd --state": allow
+    "firewall-cmd --get-*": allow
+    "firewall-cmd --list-*": allow
+    "firewall-cmd --info-*": allow
+    "firewall-cmd --query-*": allow
+    "firewall-cmd --permanent --get-*": allow
+    "firewall-cmd --permanent --list-*": allow
+    "firewall-cmd --permanent --info-*": allow
     # network
     "ip addr*": allow
     "ip a": allow
@@ -191,6 +203,19 @@ permission:
     "ip * change*": deny
     "ip * replace*": deny
     "ip * set *": deny
+    "firewall-cmd *--reload*": deny
+    "firewall-cmd *--complete-reload*": deny
+    "firewall-cmd *--runtime-to-permanent*": deny
+    "firewall-cmd *--panic*": deny
+    "firewall-cmd *--set-*": deny
+    "firewall-cmd *--add-*": deny
+    "firewall-cmd *--remove-*": deny
+    "firewall-cmd *--new-*": deny
+    "firewall-cmd *--delete-*": deny
+    "firewall-cmd *--load-*": deny
+    "firewall-cmd *--reset-*": deny
+    "firewall-cmd *--change-*": deny
+    "firewall-cmd *--lockdown*": deny
     "nmcli general hostname *": deny
     "nmcli general logging *": deny
     "*$(*": deny
@@ -250,6 +275,10 @@ local model so that you keep working when the network or the GPU stack is broken
 How to work:
 1. Investigate with read-only commands first and base every conclusion on output you actually saw.
    Check the runbook below for a matching known failure — but confirm it with evidence before you say so.
+   When an error names or involves another service (docker, NetworkManager, …), read THAT service's journal
+   around the same timestamp too — the cause is often what the other service did seconds earlier.
+   A log line alone, with nothing actually broken, may be harmless noise: say so, and do not propose changes
+   (pruning, reloading, deleting) to silence it.
 2. Do not use shell redirection (`>`, `>>`, `2>&1`, `2>/dev/null`): it is blocked, and stderr is captured anyway.
 3. Never change system state yourself. Commands outside the read-only set will ask rick for approval —
    only request one when it is the fix you are proposing, one command at a time, after explaining it.
