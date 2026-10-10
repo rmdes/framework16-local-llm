@@ -8,3 +8,5 @@ bench-results/
 
 # local machine config (paths point at FW16_HOME / MODELS_DIR)
 /config/local.conf
+eval/results/
+__pycache__/
