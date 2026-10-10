@@ -23,7 +23,9 @@ The 7040-series 7940HS has **XDNA 1** — unsupported. All acceleration here is 
 | `ld.lld: error: unable to find library -lamdhip64` | unversioned `libamdhip64.so` symlink missing | install `rocm-hip-devel` |
 | cmake "C compiler hipcc broken" | forcing `hipcc` as C/C++ compiler | use `HIP_PATH=$(hipconfig -R)`, `HIPCXX=$(hipconfig -l)/clang`; don't set `CMAKE_C_COMPILER=hipcc` |
 | `Could not find SPIRV-Headers` (Vulkan) | shader toolchain incomplete | install `spirv-headers-devel spirv-tools-devel glslang` |
-| `dnf` breaks after ROCm install | AMD el9 repo cross-grades into `/opt/rocm` | glob-pin devel packages to `.fc43` (setup.sh does this) |
+| `dnf` breaks after ROCm install | AMD el9 repo cross-grades into `/opt/rocm` | glob-pin devel packages to the running `.fcNN` (setup.sh does this via `rpm -E %fedora`) |
+| service exits **127**: `libhipblas.so.2: cannot open shared object file` | Fedora upgrade bumped ROCm (F44: 6.4 → 7.1, `hipblas .so.2→.3`, `rocblas .4→.5`, `amdhip64 .6→.7`) | rebuild clean — `llama-go` now detects this and rebuilds automatically; or `./setup.sh build rocm`. Never symlink old sonames (ABI break) |
+| Vulkan shows only `llvmpipe`; GNOME/Hyprland feel sluggish; `amdgpu_query_sw_info(...) failed` in logs | leftover AMD el9 `libdrm-amdgpu` in `/opt/amdgpu` (via `/etc/ld.so.conf.d/20-amdgpu.conf`) shadows Fedora libdrm; newer Mesa can't init the GPU | `sudo dnf remove amdgpu-install amdgpu-core libdrm-amdgpu libdrm-amdgpu-common && sudo ldconfig`, re-login. `./setup.sh doctor` flags it |
 | 14B `failed to load model` at `-ngl 99` | 8.37 GiB > 8 GB VRAM | use `-ngl 44` (partial offload) |
 | ROCm run uses CPU / wrong GPU | iGPU (gfx1103) picked or no offload | pin with `HIP_VISIBLE_DEVICES=$(hip_idx)`; verify `rocm-smi --showmeminfo vram` shows GPU[0] |
 

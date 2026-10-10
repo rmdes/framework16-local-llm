@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # _common.sh — shared config + helpers for the Framework 16 local-LLM stack.
 # Sourced by llama-go, llama-bench-shootout, and setup.sh. Not executable on its own.
 #
@@ -28,7 +29,7 @@ say(){ printf '\033[1;36m==>\033[0m %s\n' "$*"; }
 # build dir for a backend name
 build_dir(){ case "$1" in rocm) echo "$BUILD_ROCM";; vulkan) echo "$BUILD_VULKAN";; *) die "unknown backend $1";; esac; }
 
-# resolve a catalog key (3b|7b|14b) -> echoes "filename|url|ngl|note"
+# resolve a catalog key (3b|7b|coder-7b|14b) -> echoes "filename|url|ngl|note"
 catalog_lookup(){
   local key="$1" line
   line="$(grep -E "^${key}\|" "$CATALOG" 2>/dev/null | head -1)" || true
@@ -39,7 +40,7 @@ catalog_lookup(){
 model_path(){
   local key="$1"
   if [ -f "$key" ]; then echo "$key"; return; fi
-  local rec; rec="$(catalog_lookup "$key")" || die "no catalog entry '$key' (try: 3b 7b 14b, or a .gguf path)"
+  local rec; rec="$(catalog_lookup "$key")" || die "no catalog entry '$key' (try: 3b 7b coder-7b 14b, or a .gguf path)"
   echo "$MODELS_DIR/${rec%%|*}"
 }
 model_ngl(){ local rec; rec="$(catalog_lookup "$1")" && { rec="${rec#*|}"; rec="${rec#*|}"; echo "${rec%%|*}"; } || echo 99; }
@@ -56,10 +57,19 @@ vk_dev(){
   [ -n "$d" ] && echo "$d" || echo "Vulkan1"
 }
 
-# ensure a backend's binary (llama-server|llama-cli|llama-bench) exists; build if missing
+# true if a built binary can't load its shared libs — e.g. a ROCm major bump on a Fedora
+# upgrade (6→7 renamed libhipblas.so.2→.3) leaves it present but dead (exit 127).
+binary_broken(){ local out; out="$(ldd "$1" 2>/dev/null || true)"; case "$out" in *"not found"*) return 0;; esac; return 1; }
+
+# ensure a backend's binary (llama-server|llama-cli|llama-bench) exists and loads; build if not
 ensure_binary(){
   local backend="$1" tool="$2" bdir; bdir="$(build_dir "$backend")"
-  [ -x "$bdir/bin/$tool" ] && return 0
+  if [ -x "$bdir/bin/$tool" ]; then
+    binary_broken "$bdir/bin/$tool" || return 0
+    # stale CMakeCache would re-link the old libs; reconfigure from scratch
+    say "$tool ($backend) links libraries that no longer exist (toolchain upgraded) — rebuilding clean"
+    rm -rf "$bdir"
+  fi
   [ -d "$LLAMA_SRC" ] || die "llama.cpp not found at $LLAMA_SRC — run setup.sh first"
   say "building $tool ($backend) — first use, one-time"
   if [ ! -e "$bdir/CMakeCache.txt" ]; then
