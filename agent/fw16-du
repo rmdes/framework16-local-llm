@@ -1,0 +1,7 @@
+#!/bin/sh
+# Read-only disk usage for the sysadmin agent: unreadable dirs dropped, biggest last.
+# The agent can't redirect stderr and its small context drowns in du's "Permission denied" lines.
+# Not -x: on btrfs /home is a subvolume and -x would silently skip it. Pseudo-fs, removable media and /mnt (other disks + sshfs storage box) excluded.
+#   fw16-du [dir] [count]
+du -h --max-depth=1 --exclude=/proc --exclude=/sys --exclude=/dev --exclude=/run --exclude=/media --exclude=/mnt \
+  "${1:-/}" 2>/dev/null | sort -h | tail -n "${2:-15}"

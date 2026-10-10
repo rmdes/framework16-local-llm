@@ -57,3 +57,25 @@ with evidence before concluding — a runbook entry is a hypothesis, not a diagn
   firmware `fwupdmgr update` (rick runs it himself — needs a reboot).
 - After applying, run the same count again and report what is actually left — never claim "all N applied" unseen.
 - A cancelled GNOME Software offline update ("Pending offline transaction has been invalidated") is harmless; just apply as above.
+
+## 7. firewalld logs `ERROR: NAME_CONFLICT: new_policy_object(): 'docker-forwarding'`
+- Cause: harmless. docker-ce creates the `docker-forwarding` policy in firewalld's RUNTIME config. When docker
+  restarts while firewalld keeps running, docker asks to create it again → firewalld logs the conflict, docker
+  logs "Firewalld: docker zone already exists, returning" and carries on.
+- Check: the error's timestamp is seconds after `journalctl -u docker` shows "Starting docker.service";
+  `firewall-cmd --get-policies` lists docker-forwarding; containers have network.
+- Fix: none — "No action needed".
+- Never: `firewall-cmd --reload` or `systemctl restart firewalld` while docker runs (wipes docker's runtime rules →
+  containers lose networking until docker restarts), `docker network prune`, or deleting the policy.
+
+## 8. udev: `75-davincipanel.rules:2 Failed to resolve group 'resolve', ignoring: Unknown group`
+- Cause: DaVinci Resolve's installer (`/opt/resolve`) dropped `/usr/lib/udev/rules.d/75-davincipanel.rules`
+  (not owned by any rpm). Line 2 is `KERNEL=="hidraw*", SUBSYSTEM=="hidraw", MODE="0777", GROUP="resolve"`
+  — it has NO vendor match, so it targets EVERY hidraw device. Because the group is missing, udev drops the
+  line: `ls -l /dev/hidraw*` shows 0600 root, i.e. the warning is currently protecting you.
+- Check: `cat` the rule, `getent group resolve` (empty), `rpm -qf` (not owned), `ls -l /dev/hidraw*`.
+- Fix (rick runs it, root): override with a same-named file in /etc, limited to Blackmagic's vendor id 1edb:
+  `printf '%s\n' 'SUBSYSTEM=="usb", ATTRS{idVendor}=="1edb", TAG+="uaccess"' 'KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="1edb", TAG+="uaccess"' | sudo tee /etc/udev/rules.d/75-davincipanel.rules`
+  then `sudo udevadm control --reload && sudo udevadm trigger`.
+- Never: create the `resolve` group or swap in another group (activates MODE=0777 on all HID devices — keyboards,
+  fingerprint reader), or edit the file in /usr/lib (installer overwrites it).

@@ -56,7 +56,7 @@ ALLOW = [
     "cat ~/.config/aura-glass/repo-path", "git -C /home/rick/code/fedora/aura-glass status --porcelain",
     "git -C /x diff --stat | head -20", "git log --oneline -5", "df -h", "du -sh /var/log/journal",
     "find ~/.local/share/gnome-shell/extensions -name metadata.json", "gnome-extensions info foo@bar",
-    "btrfs filesystem usage /", "flatpak remote-ls --updates", "getent group resolve", "firewall-cmd --get-policies", "firewall-cmd --info-policy docker-forwarding", "docker ps -a", "fwupdmgr get-updates", "snapper list", "podman system df", "uname -r", "free -h",
+    "btrfs filesystem usage /", "flatpak remote-ls --updates", "getent group resolve", "fw16-du /var", "fw16-du", "firewall-cmd --get-policies", "firewall-cmd --info-policy docker-forwarding", "docker ps -a", "fwupdmgr get-updates", "snapper list", "podman system df", "uname -r", "free -h",
 ]
 NOT_ALLOWED = [  # must be deny or ask — never silently run
     "cat /etc/hostname > /tmp/x", "cat a | head -1 > ~/.bashrc", "ls && cat x > /tmp/y", "cat x >> ~/.profile",
