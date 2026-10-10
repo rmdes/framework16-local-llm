@@ -6,6 +6,7 @@
 #   ./setup.sh update            pull latest llama.cpp + clean-rebuild both backends (+ restart service)
 #   ./setup.sh model <key>       download a catalog model (3b|7b|coder-7b|14b)
 #   ./setup.sh service [opts]    install + enable the systemd --user service
+#   ./setup.sh agent             install the opencode Sysadmin agent (agent/opencode-sysadmin.md + RUNBOOK.md)
 #   ./setup.sh all               deps -> build -> model coder-7b -> service   (one-shot)
 #   ./setup.sh doctor            verify hardware + toolchain
 set -euo pipefail
@@ -86,8 +87,47 @@ cmd_service(){
       -e "s|@MODEL@|$MODEL|g" -e "s|@CTX@|$CTX|g" -e "s|@PORT@|$PORT|g" \
       "$REPO_DIR/systemd/llama.service.in" > "$unitdir/llama.service"
   systemctl --user daemon-reload
-  systemctl --user enable --now llama.service
+  systemctl --user enable llama.service
+  systemctl --user restart llama.service   # not --now: that leaves an already-running old model in place
   say "service started — http://127.0.0.1:$PORT  (enable boot-without-login: sudo loginctl enable-linger $USER)"
+}
+
+# ---- opencode sysadmin agent ----------------------------------------------
+# The installed file is generated: permissions + rules from agent/opencode-sysadmin.md, knowledge from
+# agent/RUNBOOK.md. Re-run after editing either (every new incident -> RUNBOOK entry -> ./setup.sh agent).
+cmd_agent(){
+  local dir="${XDG_CONFIG_HOME:-$HOME/.config}/opencode/agent" out
+  out="$dir/Sysadmin.md"
+  [ -d "$dir" ] || die "no opencode agent dir at $dir — install opencode first"
+  { cat "$REPO_DIR/agent/opencode-sysadmin.md"; echo; cat "$REPO_DIR/agent/RUNBOOK.md"; } > "$out"
+  say "installed $out (model llama-local/gemma4-e4b — serve it with: ./setup.sh service -b vulkan -m gemma4-e4b)"
+  # Daily read-only health check: fixed commands collect facts, the local model only summarises them.
+  local unitdir="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user"; mkdir -p "$unitdir"
+  cat > "$unitdir/fw16-health.service" <<UNIT
+[Unit]
+Description=fw16 read-only health check (summarised by the local model)
+After=llama.service
+
+[Service]
+Type=oneshot
+StandardInput=null
+ExecStart=/usr/bin/python3 $REPO_DIR/agent/health_check.py
+UNIT
+  cat > "$unitdir/fw16-health.timer" <<UNIT
+[Unit]
+Description=Daily fw16 health check
+
+[Timer]
+OnCalendar=*-*-* 10:00
+Persistent=true
+RandomizedDelaySec=10m
+
+[Install]
+WantedBy=timers.target
+UNIT
+  systemctl --user daemon-reload
+  systemctl --user enable --now fw16-health.timer
+  say "daily health check enabled (reports: ~/.local/state/fw16-sysadmin/) — run now: systemctl --user start fw16-health"
 }
 
 # ---- doctor -----------------------------------------------------------------
@@ -123,7 +163,8 @@ case "${1:-all}" in
   update)  cmd_update;;
   model)   shift; cmd_model "$@";;
   service) shift; cmd_service "$@";;
+  agent)   cmd_agent;;
   doctor)  cmd_doctor;;
   all)     cmd_deps; cmd_build both; cmd_model coder-7b; cmd_service;;
-  *) die "unknown subcommand '$1' (deps|build|update|model|service|all|doctor)";;
+  *) die "unknown subcommand '$1' (deps|build|update|model|service|agent|all|doctor)";;
 esac

@@ -1,0 +1,7 @@
+# libdnf5 actions: snapper pre/post snapshot around every dnf5 transaction (the DNF4 snapper plugin's job).
+# Verbatim from the dnf5 docs (actions.8, "emulate the DNF4 snapper plugin"). Installed to
+# /etc/dnf/libdnf5-plugins/actions.d/ by agent/install-snapshots.sh. Undo a bad update: snapper list, then
+# `snapper undochange <pre>..<post>`.
+pre_transaction::::/usr/bin/sh -c echo\ "tmp.snapper_descr=$(ps\ -o\ command\ --no-headers\ -p\ '${pid}')"
+pre_transaction::::/usr/bin/sh -c echo\ "tmp.snapper_pre_number=$(snapper\ create\ -t\ pre\ -p\ -d\ '${tmp.snapper_descr}')"
+post_transaction::::/usr/bin/sh -c [\ -n\ "${tmp.snapper_pre_number}"\ ]\ &&\ snapper\ create\ -t\ post\ --pre-number\ "${tmp.snapper_pre_number}"\ -d\ "${tmp.snapper_descr}"\ ;\ echo\ tmp.snapper_pre_number\ ;\ echo\ tmp.snapper_descr

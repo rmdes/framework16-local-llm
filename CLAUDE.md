@@ -16,7 +16,9 @@ A thin, measured packaging of llama.cpp for the Framework 16 + Radeon RX 7700S (
 - `systemd/llama.service.in` — `@PLACEHOLDER@` template; `setup.sh service` substitutes absolute paths.
 - `setup.sh` — orchestrator (`deps|build|update|model|service|all|doctor`).
 - `eval/` — sysadmin-agent model eval (`sysadmin_eval.py`, scenarios, `report.py`, allowlist self-check). Results: `docs/AGENT_EVAL.md`.
-- `agent/RUNBOOK.md` — this machine's known failure modes, fed to the local sysadmin agent. Every new incident → an entry.
+- `agent/RUNBOOK.md` — this machine's known failure modes, fed to the local sysadmin agent. Every new incident → an entry → `./setup.sh agent`.
+- `agent/opencode-sysadmin.md` — the opencode Sysadmin agent: permission rules + rules prompt. `./setup.sh agent` installs it (+ runbook appended) and the daily `fw16-health.timer` (`agent/health_check.py`).
+- `agent/install-snapshots.sh` + `snapper.actions` — root, one-time: snapper pre/post snapshots around every dnf5 transaction.
 
 ## Hard-won facts — do not regress these
 
@@ -33,11 +35,14 @@ A thin, measured packaging of llama.cpp for the Framework 16 + Radeon RX 7700S (
 - **14B Q4 (8.37 GiB) does not fit 8 GB.** `-ngl 99` → "failed to load model". Catalog pins it to `ngl 44` (partial offload).
 - **Sysadmin agent model = Gemma 4 E4B, thinking ON, + `agent/RUNBOOK.md`** (eval 2026-10-10: 19/27, 12/12 on known incidents, 1 unsafe run). Thinking OFF makes it skip investigation. No model reasons through unfamiliar setups — escalate.
 - **The eval's live mode runs model-chosen shell (`shell=True`) behind `READ_ONLY`.** Any change to the allowlist needs a bypass case in `eval/test_live_allowlist.py` (git `-c`/`--output`, `env CMD`, `sed w/e`, `find -exec`…).
+- **opencode bash permissions match each command's text INCLUDING its redirect** (`cat x > f` vs `cat *` → allowed). Hence the trailing `"*>*": deny`. Unfixable gap: `{ cmd; } > f` / `( cmd ) > f` (redirect sits on the group). Last match wins: `"*": ask` first, denies last. `tests/test_sysadmin_permissions.py` ports the matcher — run it after any rule change.
+- **`opencode run` hangs at `init` when stdin is an open pipe** (agent shells, scripts). Always `< /dev/null`.
+- **This is dnf5**: `python3-dnf-plugin-snapper` is dnf4-only; snapshots go through `libdnf5-plugin-actions` + an actions file.
 - **Fake-shell output must never imply absence.** Unknown commands return an explicit "no data" — an empty string reads as "file missing" and sent models down false paths.
 
 ## Backend choice (measured, not preference)
 
-ROCm wins prompt-processing ~30%; token-generation is near-parity (Vulkan +4% as of llama.cpp 2026-10 — it was +20% in June, so re-measure after every bump). Service = ROCm (long-context) running `coder-7b` (the catalog's coding default). `llama-go` default = ROCm too (2026-10); Vulkan still wins decode on small models (3B +21%), so the gap is size-dependent. Don't flatten this into "X is faster" — it is workload-dependent.
+ROCm wins prompt-processing ~30%; token-generation is near-parity (Vulkan +4% as of llama.cpp 2026-10 — it was +20% in June, so re-measure after every bump). Service = Vulkan running `gemma4-e4b` for the sysadmin agent (2026-10-10; coding moved to the DGX Spark). `llama-go` default = ROCm too (2026-10); Vulkan still wins decode on small models (3B +21%), so the gap is size-dependent. Don't flatten this into "X is faster" — it is workload-dependent.
 
 ## Conventions
 
@@ -52,6 +57,7 @@ ROCm wins prompt-processing ~30%; token-generation is near-parity (Vulkan +4% as
 ./setup.sh doctor                 # hardware + toolchain + libdrm + build health + service state
 tests/test_binary_broken.sh       # stale-binary detection (needs gcc)
 eval/test_live_allowlist.py       # eval security boundary + grader
+tests/test_sysadmin_permissions.py  # opencode Sysadmin rules: read-only allowed, changes held
 bin/llama-go --prompt "ping"      # end-to-end generation
 systemctl --user status llama
 ```
