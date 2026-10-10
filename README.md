@@ -17,7 +17,7 @@ If your machine matches the spec below, `./setup.sh` gets you a running, GPU-acc
 | dGPU | **Radeon RX 7700S** — Navi 33, **gfx1102**, 8 GB VRAM |
 | iGPU | Radeon 780M (gfx1103) — present, not used for inference here |
 | RAM | 32–64 GB recommended |
-| OS | Fedora 43 (ROCm 6.4.x, Mesa RADV) |
+| OS | Fedora 44 (ROCm 7.1, Mesa 26.2 RADV) — also built on Fedora 43 / ROCm 6.4 |
 
 > The XDNA **1** NPU in the 7040-series has no Linux LLM runtime — inference is GPU + CPU only.
 
@@ -25,11 +25,11 @@ If your machine matches the spec below, `./setup.sh` gets you a running, GPU-acc
 
 ```bash
 git clone <this-repo> framework16-local-llm && cd framework16-local-llm
-./setup.sh            # deps + build (ROCm & Vulkan) + download 7B + install service
+./setup.sh            # deps + build (ROCm & Vulkan) + download Coder-7B + install service
 # → http://127.0.0.1:8080  (web UI in a browser, OpenAI API at /v1)
 ```
 
-Or step by step: `./setup.sh deps`, `./setup.sh build`, `./setup.sh model 7b`, `./setup.sh service`. Run `./setup.sh doctor` anytime to verify the stack.
+Or step by step: `./setup.sh deps`, `./setup.sh build`, `./setup.sh model coder-7b`, `./setup.sh service`. Run `./setup.sh doctor` anytime to verify the stack.
 
 ## Two backends — pick by workload
 
@@ -110,7 +110,8 @@ bin/llama-bench-shootout ROCm-vs-Vulkan benchmark
 bin/_common.sh           shared config, paths, GPU pinning, model catalog
 config/models.conf       model catalog with measured ngl recommendations
 systemd/llama.service.in service template
-docs/                    BENCHMARKS.md, HARDWARE.md
+docs/                    BENCHMARKS.md, HARDWARE.md (incl. Fedora-upgrade troubleshooting)
+tests/                   test_binary_broken.sh (stale-binary detection)
 ```
 
 Paths are overridable via `~/.config/fw16-llm/config` (`FW16_HOME`, `MODELS_DIR`, `GFX`). License: MIT.
