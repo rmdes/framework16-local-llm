@@ -4,7 +4,7 @@ Guidance for Claude Code (or any agent) working in this repo.
 
 ## What this is
 
-A thin, measured packaging of llama.cpp for the Framework 16 + Radeon RX 7700S (gfx1102, 8 GB). It is **shell + config only** — no application code. The value is in the *correct ROCm-on-Fedora build recipe* and the *hardware-measured defaults*, not in abstraction.
+A thin, measured packaging of llama.cpp for the Framework 16 + Radeon RX 7700S (gfx1102, 8 GB). It is **shell + config**, plus one stdlib-Python eval harness (`eval/`) — no application code. The value is in the *correct ROCm-on-Fedora build recipe* and the *hardware-measured defaults*, not in abstraction.
 
 ## Architecture (one source of truth each)
 
@@ -14,7 +14,9 @@ A thin, measured packaging of llama.cpp for the Framework 16 + Radeon RX 7700S (
 - `bin/llama-bench-shootout` — benchmark harness.
 - `config/models.conf` — the model catalog: `key|filename|url|ngl|note`. `ngl` values are **measured**, not guessed.
 - `systemd/llama.service.in` — `@PLACEHOLDER@` template; `setup.sh service` substitutes absolute paths.
-- `setup.sh` — orchestrator (`deps|build|model|service|all|doctor`).
+- `setup.sh` — orchestrator (`deps|build|update|model|service|all|doctor`).
+- `eval/` — sysadmin-agent model eval (`sysadmin_eval.py`, scenarios, `report.py`, allowlist self-check). Results: `docs/AGENT_EVAL.md`.
+- `agent/RUNBOOK.md` — this machine's known failure modes, fed to the local sysadmin agent. Every new incident → an entry.
 
 ## Hard-won facts — do not regress these
 
@@ -29,6 +31,9 @@ A thin, measured packaging of llama.cpp for the Framework 16 + Radeon RX 7700S (
 - **Vulkan build needs** `spirv-headers-devel spirv-tools-devel glslang glslc` (build-time shader compile), beyond just `glslc`.
 - **`pkill -f llama-server` self-matches** an agent shell whose command line contains the string. Use `pkill -x llama-server`.
 - **14B Q4 (8.37 GiB) does not fit 8 GB.** `-ngl 99` → "failed to load model". Catalog pins it to `ngl 44` (partial offload).
+- **Sysadmin agent model = Gemma 4 E4B, thinking ON, + `agent/RUNBOOK.md`** (eval 2026-10-10: 19/27, 12/12 on known incidents, 1 unsafe run). Thinking OFF makes it skip investigation. No model reasons through unfamiliar setups — escalate.
+- **The eval's live mode runs model-chosen shell (`shell=True`) behind `READ_ONLY`.** Any change to the allowlist needs a bypass case in `eval/test_live_allowlist.py` (git `-c`/`--output`, `env CMD`, `sed w/e`, `find -exec`…).
+- **Fake-shell output must never imply absence.** Unknown commands return an explicit "no data" — an empty string reads as "file missing" and sent models down false paths.
 
 ## Backend choice (measured, not preference)
 
@@ -46,6 +51,7 @@ ROCm wins prompt-processing ~30%; token-generation is near-parity (Vulkan +4% as
 ```bash
 ./setup.sh doctor                 # hardware + toolchain + libdrm + build health + service state
 tests/test_binary_broken.sh       # stale-binary detection (needs gcc)
+eval/test_live_allowlist.py       # eval security boundary + grader
 bin/llama-go --prompt "ping"      # end-to-end generation
 systemctl --user status llama
 ```

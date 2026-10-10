@@ -32,7 +32,7 @@ for key in "${MODELS[@]}"; do
   for backend in rocm vulkan; do
     say "$key / $backend / ngl=$ngl / pp=$PP tg=$TG"
     out="$RESULTS/${key}-${backend}-${STAMP}.md"
-    bench_one "$backend" "$m" "$ngl" | tee "$out" | grep -E '^\| (qwen|model|---)'
+    bench_one "$backend" "$m" "$ngl" | tee "$out" | grep -E '^\| '   # all table rows — any model family
   done
 done
 say "results saved under $RESULTS"
