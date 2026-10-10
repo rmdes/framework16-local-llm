@@ -47,10 +47,13 @@ with evidence before concluding — a runbook entry is a hypothesis, not a diagn
 - GNOME Software updates THREE sources. Check EACH ONE IN ITS OWN COMMAND (never chain them — the
   outputs run together and one tool's "No updates available" gets misread as covering the others):
   `dnf check-update -q | grep -c '\.'` → number of RPM updates
-  `flatpak remote-ls --updates | wc -l` → number of Flatpak updates (apps + runtimes)
+  `flatpak remote-ls --updates --columns=origin | grep -vcx fedora` → number of Flatpak updates. The `fedora`
+  remote is OCI (oci+https://registry.fedoraproject.org): remote-ls ALWAYS lists its refs as updatable even when
+  they are current — ignore them. `flatpak update` saying "Nothing to update" is the final word.
   `fwupdmgr get-updates` → firmware ("No updates available" refers to firmware ONLY)
   Report each count separately. Any number above 0 means updates are waiting.
 - Fix, one source at a time: RPMs `sudo dnf upgrade` (snapper snapshots it automatically);
   Flatpaks `flatpak update -y` (no sudo, NOT snapshotted — roll back one app with `flatpak update --commit=<old> <app>`);
   firmware `fwupdmgr update` (rick runs it himself — needs a reboot).
+- After applying, run the same count again and report what is actually left — never claim "all N applied" unseen.
 - A cancelled GNOME Software offline update ("Pending offline transaction has been invalidated") is harmless; just apply as above.
