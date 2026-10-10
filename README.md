@@ -29,25 +29,25 @@ git clone <this-repo> framework16-local-llm && cd framework16-local-llm
 # → http://127.0.0.1:8080  (web UI in a browser, OpenAI API at /v1)
 ```
 
-Or step by step: `./setup.sh deps`, `./setup.sh build`, `./setup.sh model coder-7b`, `./setup.sh service`. Run `./setup.sh doctor` anytime to verify the stack.
+Or step by step: `./setup.sh deps`, `./setup.sh build`, `./setup.sh model coder-7b`, `./setup.sh service`. Run `./setup.sh doctor` anytime to verify the stack, and `./setup.sh update` to pull the latest llama.cpp and rebuild cleanly.
 
 ## Two backends — pick by workload
 
-Measured on the RX 7700S, Qwen2.5-7B Q4_K_M, full offload:
+Measured on the RX 7700S, Qwen2.5-7B Q4_K_M, full offload (Fedora 44, llama.cpp 2026-10):
 
 | Backend | Prompt processing (pp512) | Token generation (tg128) | Best for |
 |---|---:|---:|---|
-| **ROCm** | **1140 t/s** | 45 t/s | Long context / RAG / large prompts (prefill-bound) |
-| **Vulkan** | 853 t/s | **54 t/s** | Interactive chat (decode-bound), zero-maintenance |
+| **ROCm** | **1302 t/s** | 52 t/s | Long context / RAG / agentic coding (prefill-bound) — the all-rounder |
+| **Vulkan** | 1000 t/s | **54 t/s** | Short-prompt chat, zero-maintenance fallback |
 
-Neither is universally faster — ROCm wins prefill by ~33%, Vulkan wins decode by ~20%. The always-on service runs **ROCm** (long-context strength); `llama-go` with no args gives you **Vulkan** for snappy chat.
+ROCm wins prefill by ~30%; decode is now near-parity (Vulkan +4%, down from +20% in June). The always-on service runs **ROCm**; `llama-go` with no args still gives you **Vulkan**, which only edges ahead for short-prompt chat. History and the per-upgrade breakdown are in [docs/BENCHMARKS.md](docs/BENCHMARKS.md).
 
 ## Model capacity (8 GB VRAM)
 
 | Model | Fits VRAM? | pp512 | tg128 | Use |
 |---|:--:|---:|---:|---|
 | **3B** Q4 | ✅ full | 2352 t/s | 80 t/s | Agentic, autocomplete, tool-calling |
-| **7B** Q4 | ✅ full | 1140 t/s | 45 t/s | **Default daily driver** |
+| **7B** Q4 | ✅ full | 1302 t/s | 52 t/s | **Default daily driver** |
 | **14B** Q4 | ⚠️ partial (44/48 layers) | 482 t/s | 17 t/s | Max quality, slower |
 
 7B is the sweet spot. 14B (8.37 GiB) overflows 8 GB and runs partially on CPU — usable for quality-first single queries, not rapid chat. See [docs/BENCHMARKS.md](docs/BENCHMARKS.md).
@@ -103,7 +103,7 @@ pointed at its port. For opencode, add to `~/.config/opencode/opencode.json`:
 ## Layout
 
 ```
-setup.sh                 one-shot installer (deps|build|model|service|doctor)
+setup.sh                 one-shot installer (deps|build|update|model|service|doctor)
 bin/llama-go             daily-driver launcher (backend + model + pinning)
 bin/llama-vulkan-mode    temp-swap to Vulkan on :8081, auto-restore ROCm service
 bin/llama-bench-shootout ROCm-vs-Vulkan benchmark

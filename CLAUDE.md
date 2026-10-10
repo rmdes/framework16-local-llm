@@ -23,6 +23,8 @@ A thin, measured packaging of llama.cpp for the Framework 16 + Radeon RX 7700S (
 - **Do NOT force `hipcc` as the C/C++ compiler.** Use `HIP_PATH=$(hipconfig -R)` (=/usr) and `HIPCXX=$(hipconfig -l)/clang`. Forcing hipcc makes cmake's trivial compiler test fail.
 - **`rocblas-devel`/`hipblas-devel` collide with the AMD el9 repo** (installs to `/opt/rocm`, breaks `dnf`). Always glob-pin to the running `.fc$(rpm -E %fedora)` — never a hardcoded release; see `cmd_deps` in setup.sh.
 - **Fedora upgrades bump ROCm sonames** (F44: ROCm 7.1, `libhipblas.so.3`). A stale binary still *exists* but exits 127. `ensure_binary` checks `ldd` (`binary_broken`) and rebuilds from a clean build dir — a reused CMakeCache relinks the old libs.
+- **After any Fedora upgrade or llama.cpp pull, rebuild from EMPTY build dirs** (`./setup.sh update`). Stale CMakeCaches pin the old toolchain: F44 broke both on ROCm sonames *and* on GCC 15's `libgomp.so`. `binary_broken` only catches the first.
+- **`llama-cli` is chat-only upstream (verified at `1623d8ce4`, 2026-10).** `-cnv`/`-no-cnv` are gone; one-shot is `-st -p "…"`. The old non-chat tool is `llama-completion`. Check `--help` for flags `llama-go` passes after every bump.
 - **Never install the AMD el9 `amdgpu-install` stack on Fedora.** Its `libdrm-amdgpu` lands in `/opt/amdgpu` (ld.so.conf) and breaks newer Fedora Mesa → Vulkan + desktop on llvmpipe. Fedora ships all of ROCm natively; `doctor` checks for this.
 - **Vulkan build needs** `spirv-headers-devel spirv-tools-devel glslang glslc` (build-time shader compile), beyond just `glslc`.
 - **`pkill -f llama-server` self-matches** an agent shell whose command line contains the string. Use `pkill -x llama-server`.
@@ -30,7 +32,7 @@ A thin, measured packaging of llama.cpp for the Framework 16 + Radeon RX 7700S (
 
 ## Backend choice (measured, not preference)
 
-ROCm wins prompt-processing ~33%; Vulkan wins token-generation ~20%. Service = ROCm (long-context) running `coder-7b` (the catalog's coding default). `llama-go` default = Vulkan (chat). Don't flatten this into "X is faster" — it is workload-dependent.
+ROCm wins prompt-processing ~30%; token-generation is near-parity (Vulkan +4% as of llama.cpp 2026-10 — it was +20% in June, so re-measure after every bump). Service = ROCm (long-context) running `coder-7b` (the catalog's coding default). `llama-go` default = Vulkan (chat). Don't flatten this into "X is faster" — it is workload-dependent.
 
 ## Conventions
 

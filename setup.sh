@@ -3,6 +3,7 @@
 # Subcommands (default: all):
 #   ./setup.sh deps              install ROCm + Vulkan + build dependencies (needs sudo)
 #   ./setup.sh build [backend]   clone llama.cpp + build rocm and/or vulkan (default both)
+#   ./setup.sh update            pull latest llama.cpp + clean-rebuild both backends (+ restart service)
 #   ./setup.sh model <key>       download a catalog model (3b|7b|coder-7b|14b)
 #   ./setup.sh service [opts]    install + enable the systemd --user service
 #   ./setup.sh all               deps -> build -> model coder-7b -> service   (one-shot)
@@ -41,6 +42,22 @@ cmd_build(){
     vulkan|both) ensure_binary vulkan llama-server; ensure_binary vulkan llama-cli; ensure_binary vulkan llama-bench;;
   esac
   say "build complete"
+}
+
+# ---- update llama.cpp -------------------------------------------------------
+# Pull upstream and rebuild both backends from EMPTY build dirs. Clean is deliberate: after a
+# Fedora upgrade a reused CMakeCache still points at the old toolchain (ROCm sonames, GCC N's
+# libgomp.so) and the relink fails or produces a dead binary.
+cmd_update(){
+  [ -d "$LLAMA_SRC/.git" ] || die "no llama.cpp checkout at $LLAMA_SRC — run ./setup.sh build first"
+  local before; before="$(git -C "$LLAMA_SRC" rev-parse --short HEAD)"
+  git -C "$LLAMA_SRC" pull --ff-only
+  say "llama.cpp $before -> $(git -C "$LLAMA_SRC" rev-parse --short HEAD); rebuilding clean"
+  local was_active=0; systemctl --user is-active --quiet llama.service && was_active=1
+  rm -rf "$BUILD_ROCM" "$BUILD_VULKAN"
+  cmd_build both
+  [ "$was_active" = 1 ] && { say "restarting llama.service"; systemctl --user restart llama.service; }
+  say "done — re-measure with: bin/llama-bench-shootout 7b"
 }
 
 # ---- model download ---------------------------------------------------------
@@ -103,9 +120,10 @@ cmd_doctor(){
 case "${1:-all}" in
   deps)    cmd_deps;;
   build)   shift; cmd_build "${1:-both}";;
+  update)  cmd_update;;
   model)   shift; cmd_model "$@";;
   service) shift; cmd_service "$@";;
   doctor)  cmd_doctor;;
   all)     cmd_deps; cmd_build both; cmd_model coder-7b; cmd_service;;
-  *) die "unknown subcommand '$1' (deps|build|model|service|all|doctor)";;
+  *) die "unknown subcommand '$1' (deps|build|update|model|service|all|doctor)";;
 esac

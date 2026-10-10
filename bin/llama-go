@@ -50,6 +50,7 @@ if [ "$MODE" = server ]; then
   pin_run "$BDIR/bin/llama-server" -m "$MODEL" -ngl "$NGL" -c "$CTX" --host "$HOST" --port "$PORT" --jinja
 else
   args=(-m "$MODEL" -ngl "$NGL" -c "$CTX")
-  [ "$MODE" = chat ] && args+=(-cnv) || args+=(-no-cnv -p "$PROMPT")
+  # llama-cli is chat-only since late 2026 (-cnv/-no-cnv removed); -st = one turn then exit
+  [ "$MODE" = prompt ] && args+=(-st -p "$PROMPT")
   pin_run "$BDIR/bin/llama-cli" "${args[@]}"
 fi
