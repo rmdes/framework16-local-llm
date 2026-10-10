@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
 # llama-go — daily-driver launcher for local LLMs on the Framework 16 (RX 7700S, gfx1102).
-# Picks backend by workload: vulkan = faster token-gen (chat), rocm = faster prompt-proc (long ctx).
+# Default rocm: +30% prompt-proc, decode within ~4% on 7B. Vulkan decodes faster on small models (3B +21%).
 # Auto-builds the needed binary and auto-pins to the discrete GPU.
 #
-#   llama-go                      # Vulkan server on :8080 (default; best for chat)
-#   llama-go -b rocm -c 32768     # ROCm server, 32k context (best for RAG/long prompts)
-#   llama-go --chat               # interactive terminal chat (Vulkan)
+#   llama-go                      # ROCm server on :8080, 32k ctx (default)
+#   llama-go -b vulkan -m 3b      # Vulkan server, 8k ctx (fastest decode on small models)
+#   llama-go --chat               # interactive terminal chat
 #   llama-go --prompt "explain X" # one-shot generation, prints and exits
 #   llama-go -m 3b --chat         # use a catalog model (3b|7b|14b) or a .gguf path
 set -euo pipefail
 . "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/_common.sh"
 
-BACKEND="vulkan"; MODE="server"; MODEL_KEY="7b"
+BACKEND="rocm"; MODE="server"; MODEL_KEY="7b"
 CTX=""; PORT="8080"; HOST="127.0.0.1"; NGL=""; PROMPT=""
 
 while [ $# -gt 0 ]; do case "$1" in
