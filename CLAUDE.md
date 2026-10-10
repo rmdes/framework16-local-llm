@@ -32,7 +32,7 @@ A thin, measured packaging of llama.cpp for the Framework 16 + Radeon RX 7700S (
 
 ## Backend choice (measured, not preference)
 
-ROCm wins prompt-processing ~30%; token-generation is near-parity (Vulkan +4% as of llama.cpp 2026-10 — it was +20% in June, so re-measure after every bump). Service = ROCm (long-context) running `coder-7b` (the catalog's coding default). `llama-go` default = Vulkan (chat). Don't flatten this into "X is faster" — it is workload-dependent.
+ROCm wins prompt-processing ~30%; token-generation is near-parity (Vulkan +4% as of llama.cpp 2026-10 — it was +20% in June, so re-measure after every bump). Service = ROCm (long-context) running `coder-7b` (the catalog's coding default). `llama-go` default = ROCm too (2026-10); Vulkan still wins decode on small models (3B +21%), so the gap is size-dependent. Don't flatten this into "X is faster" — it is workload-dependent.
 
 ## Conventions
 

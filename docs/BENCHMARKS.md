@@ -31,16 +31,24 @@ Takeaways:
 - **The llama.cpp bump** gave ROCm +5–6% prefill and **+12% decode**, but cost Vulkan ~6–7% prefill.
   Decode on Vulkan was unchanged.
 
-## Model size sweep (ROCm) — Fedora 43, llama.cpp `0ed235ea2` (not yet re-measured)
+## Model size sweep — Fedora 44, llama.cpp `781dbc5ac` (2026-10-10)
 
-| Model | File | Fits 8 GB? | ngl | pp512 | tg128 |
-|---|---:|:--:|--:|---:|---:|
-| Qwen2.5-3B  | 1.79 GiB | ✅ full | 99 | 2352 t/s | 80.5 t/s |
-| Qwen2.5-7B  | 4.36 GiB | ✅ full | 99 | 1140 t/s | 44.8 t/s |
-| Qwen2.5-14B | 8.37 GiB | ⚠️ partial | 44 | 482 t/s | 17.2 t/s |
-| Qwen2.5-14B | 8.37 GiB | (CPU only) | 0 | 260 t/s | 6.3 t/s |
+| Model | File | Fits 8 GB? | ngl | ROCm pp512 | ROCm tg128 | Vulkan pp512 | Vulkan tg128 |
+|---|---:|:--:|--:|---:|---:|---:|---:|
+| Qwen2.5-3B  | 1.79 GiB | ✅ full | 99 | 2581 t/s | 86.6 t/s | 2089 t/s | **104.9 t/s** |
+| Qwen2.5-7B¹ | 4.36 GiB | ✅ full | 99 | 1302 t/s | 52.1 t/s | 1000 t/s | 54.1 t/s |
+| Qwen2.5-14B | 8.37 GiB | ⚠️ partial | 44 | 584 t/s | 18.9 t/s | 417 t/s | 19.2 t/s |
 
-14B partial-offload sensitivity (layers on GPU → decode): `ngl 44 → 17.2`, `40 → 15.3`, `36 → 12.9`, `0 → 6.3` t/s.
+- ROCm leads prefill by 24–40% at every size.
+- **Vulkan's decode lead depends on model size**: +21% on 3B, +4% on 7B, +2% on 14B (partial offload,
+  so CPU-bound layers flatten the gap). For quick 3B chat, `llama-go -b vulkan -m 3b` is fastest.
+- vs June (F43, `0ed235ea2`, ROCm only): 3B 2352 → 2581 / 80.5 → 86.6, 14B 482 → 584 / 17.2 → 18.9.
+
+¹ 7B measured at `1623d8ce4` earlier the same day (see shootout above).
+
+CPU-only 14B (June): 260 t/s pp512, 6.3 t/s tg128.
+
+14B partial-offload sensitivity (June, ROCm; layers on GPU → decode): `ngl 44 → 17.2`, `40 → 15.3`, `36 → 12.9`, `0 → 6.3` t/s.
 
 ## Reproduce
 

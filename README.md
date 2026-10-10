@@ -40,23 +40,23 @@ Measured on the RX 7700S, Qwen2.5-7B Q4_K_M, full offload (Fedora 44, llama.cpp 
 | **ROCm** | **1302 t/s** | 52 t/s | Long context / RAG / agentic coding (prefill-bound) — the all-rounder |
 | **Vulkan** | 1000 t/s | **54 t/s** | Short-prompt chat, zero-maintenance fallback |
 
-ROCm wins prefill by ~30%; decode is now near-parity (Vulkan +4%, down from +20% in June). The always-on service runs **ROCm**; `llama-go` with no args still gives you **Vulkan**, which only edges ahead for short-prompt chat. History and the per-upgrade breakdown are in [docs/BENCHMARKS.md](docs/BENCHMARKS.md).
+ROCm wins prefill by ~30%; decode is now near-parity (Vulkan +4%, down from +20% in June). The always-on service and `llama-go` both default to **ROCm**; Vulkan still decodes faster on small models (3B: +21%), so use `-b vulkan` for snappy 3B chat. History and the per-upgrade breakdown are in [docs/BENCHMARKS.md](docs/BENCHMARKS.md).
 
 ## Model capacity (8 GB VRAM)
 
 | Model | Fits VRAM? | pp512 | tg128 | Use |
 |---|:--:|---:|---:|---|
-| **3B** Q4 | ✅ full | 2352 t/s | 80 t/s | Agentic, autocomplete, tool-calling |
+| **3B** Q4 | ✅ full | 2581 t/s | 87 t/s | Agentic, autocomplete, tool-calling |
 | **7B** Q4 | ✅ full | 1302 t/s | 52 t/s | **Default daily driver** |
-| **14B** Q4 | ⚠️ partial (44/48 layers) | 482 t/s | 17 t/s | Max quality, slower |
+| **14B** Q4 | ⚠️ partial (44/48 layers) | 584 t/s | 19 t/s | Max quality, slower |
 
 7B is the sweet spot. 14B (8.37 GiB) overflows 8 GB and runs partially on CPU — usable for quality-first single queries, not rapid chat. See [docs/BENCHMARKS.md](docs/BENCHMARKS.md).
 
 ## Usage
 
 ```bash
-bin/llama-go                      # Vulkan chat server (default)
-bin/llama-go -b rocm -c 32768     # ROCm, long context
+bin/llama-go                      # ROCm server, 32k context (default)
+bin/llama-go -b vulkan -m 3b      # Vulkan, fastest decode on the 3B
 bin/llama-go --chat               # interactive terminal chat
 bin/llama-go -m 3b --prompt "hi"  # one-shot with the 3B model
 bin/llama-bench-shootout 3b 7b 14b  # re-run the size sweep
