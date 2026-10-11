@@ -38,6 +38,7 @@ A thin, measured packaging of llama.cpp for the Framework 16 + Radeon RX 7700S (
 - **opencode bash permissions match each command's text INCLUDING its redirect** (`cat x > f` vs `cat *` → allowed). Hence the trailing `"*>*": deny`. Unfixable gap: `{ cmd; } > f` / `( cmd ) > f` (redirect sits on the group). Last match wins: `"*": ask` first, denies last. `tests/test_sysadmin_permissions.py` ports the matcher — run it after any rule change.
 - **`opencode run` hangs at `init` when stdin is an open pipe** (agent shells, scripts). Always `< /dev/null`.
 - **This is dnf5**: `python3-dnf-plugin-snapper` is dnf4-only; snapshots go through `libdnf5-plugin-actions` + an actions file.
+- **`/var/lib/docker` must be its own btrfs subvolume** (inode 256). Inside root, every snapper snapshot pins all docker layers + build cache — a 742G prune freed 0 bytes. The reflink migration in `install-snapshots.sh` took ~55 min for 35M build-cache files; prune the cache first if it ever has to run again.
 - **Fake-shell output must never imply absence.** Unknown commands return an explicit "no data" — an empty string reads as "file missing" and sent models down false paths.
 
 ## Backend choice (measured, not preference)
