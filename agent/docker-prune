@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# Weekly Docker cleanup (fw16-docker-prune.timer): keep only the newest KEEP builds of each rmdes/* image,
+# drop dangling layers, cap BuildKit cache at CACHE. Worst case afterwards = a full rebuild; every
+# rmdes/* build is also on Docker Hub. Cloudron builds once left 1.3T here (Oct 2026).
+#   DRY_RUN=1 docker-prune   # list what would go, change nothing
+set -uo pipefail   # not -e: a failed rmi (image in use) must not stop the prune
+KEEP="${KEEP:-2}"
+CACHE="${CACHE:-10GB}"  # ponytail: ~2 indiekit builds' worth; BuildKit has no "last N builds" knob, LRU size cap is the closest
+
+old_tags() {  # newest first by creation time — tag names mix date and build-number schemes, so never sort names
+  docker images --format '{{.Repository}}' | grep '^rmdes/' | sort -u | while read -r repo; do
+    docker images "$repo" --format '{{.CreatedAt}}\t{{.Repository}}:{{.Tag}}' | grep -v ':<none>$' |
+      sort -r | tail -n +"$((KEEP + 1))" | cut -f2
+  done
+}
+
+if [ -n "${DRY_RUN:-}" ]; then
+  old_tags
+  docker system df
+  exit 0
+fi
+old_tags | xargs -r -n 50 docker rmi || true   # an image still used by a container is kept, not fatal
+docker image prune -f
+docker builder prune -f --max-used-space "$CACHE"
+docker system df

@@ -126,8 +126,33 @@ RandomizedDelaySec=10m
 [Install]
 WantedBy=timers.target
 UNIT
+  # Weekly Docker cleanup: keep the 2 newest rmdes/* builds, cap BuildKit cache (~2 builds). Worst case: full rebuild.
+  cat > "$unitdir/fw16-docker-prune.service" <<UNIT
+[Unit]
+Description=fw16 weekly Docker prune (keep last 2 builds)
+
+[Service]
+Type=oneshot
+StandardInput=null
+Nice=19
+IOSchedulingClass=idle
+ExecStart=$REPO_DIR/agent/docker-prune
+UNIT
+  cat > "$unitdir/fw16-docker-prune.timer" <<UNIT
+[Unit]
+Description=Weekly fw16 Docker prune
+
+[Timer]
+OnCalendar=weekly
+Persistent=true
+RandomizedDelaySec=1h
+
+[Install]
+WantedBy=timers.target
+UNIT
   systemctl --user daemon-reload
-  systemctl --user enable --now fw16-health.timer
+  systemctl --user enable --now fw16-health.timer fw16-docker-prune.timer
+  say "weekly docker prune enabled (dry run: DRY_RUN=1 agent/docker-prune)"
   say "daily health check enabled (reports: ~/.local/state/fw16-sysadmin/) — run now: systemctl --user start fw16-health"
 }
 

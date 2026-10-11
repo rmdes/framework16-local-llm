@@ -17,7 +17,7 @@ A thin, measured packaging of llama.cpp for the Framework 16 + Radeon RX 7700S (
 - `setup.sh` — orchestrator (`deps|build|update|model|service|all|doctor`).
 - `eval/` — sysadmin-agent model eval (`sysadmin_eval.py`, scenarios, `report.py`, allowlist self-check). Results: `docs/AGENT_EVAL.md`.
 - `agent/RUNBOOK.md` — this machine's known failure modes, fed to the local sysadmin agent. Every new incident → an entry → `./setup.sh agent`.
-- `agent/opencode-sysadmin.md` — the opencode Sysadmin agent: permission rules + rules prompt. `./setup.sh agent` installs it (+ runbook appended) and the daily `fw16-health.timer` (`agent/health_check.py`).
+- `agent/opencode-sysadmin.md` — the opencode Sysadmin agent: permission rules + rules prompt. `./setup.sh agent` installs it (+ runbook appended), the daily `fw16-health.timer` (`agent/health_check.py`) and the weekly `fw16-docker-prune.timer` (`agent/docker-prune`: keep the 2 newest `rmdes/*` builds, BuildKit cache capped at 10GB — Cloudron builds once filled 1.3T).
 - `agent/install-snapshots.sh` + `snapper.actions` — root, one-time: snapper pre/post snapshots around every dnf5 transaction.
 
 ## Hard-won facts — do not regress these
