@@ -97,3 +97,9 @@ with evidence before concluding — a runbook entry is a hypothesis, not a diagn
 - No jobs left and no new hp lines → already over, nothing to do.
 - Fix: tell rick which job is stuck; he cancels it (`cancel <job-id>`) or plugs the printer in.
 - Never: restart cups, delete the printer queue, or change USB/udev permissions for this.
+
+## 10. dbus-broker-launch: `Ignoring duplicate name '…' in service file '/usr/share//dbus-1/services/…'`
+- Cause: harmless. Two installed packages provide the same D-Bus name; the first one wins. On this machine:
+  `org.freedesktop.Notifications` (dunst vs GNOME Shell), `org.freedesktop.FileManager1` (Thunar vs Nautilus),
+  `org.gnome.Extensions`. Comes from having Hyprland and GNOME tools side by side.
+- No action. Never delete or edit files in /usr/share/dbus-1/services.
