@@ -1,0 +1,4 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "tool_output": { "max_lines": 200, "max_bytes": 8192 }
+}

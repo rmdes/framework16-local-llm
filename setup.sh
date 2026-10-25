@@ -105,6 +105,10 @@ cmd_agent(){
   [ -d "$dir" ] || die "no opencode agent dir at $dir — install opencode first"
   { cat "$REPO_DIR/agent/opencode-sysadmin.md"; echo; cat "$REPO_DIR/agent/RUNBOOK.md"; } > "$out"
   mkdir -p "$HOME/.local/bin" && ln -sf "$REPO_DIR/agent/fw16-du" "$HOME/.local/bin/fw16-du"
+  # The small model never sets the shell tool's timeout itself: 120s killed dnf/flatpak upgrades mid-run.
+  # Read by the opencode background server at start (new login, or restart `opencode serve --service`).
+  mkdir -p "$HOME/.config/environment.d"
+  echo "OPENCODE_EXPERIMENTAL_BASH_DEFAULT_TIMEOUT_MS=3600000" > "$HOME/.config/environment.d/50-opencode.conf"
   say "installed $out (model llama-local/gemma4-e4b — serve it with: ./setup.sh service -b vulkan -m gemma4-e4b)"
   # Daily read-only health check: fixed commands collect facts, the local model only summarises them.
   local unitdir="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user"; mkdir -p "$unitdir"
