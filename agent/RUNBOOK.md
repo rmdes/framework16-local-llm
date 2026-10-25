@@ -59,6 +59,10 @@ with evidence before concluding — a runbook entry is a hypothesis, not a diagn
   Flatpaks `flatpak update -y` (no sudo, NOT snapshotted — roll back one app with `flatpak update --commit=<old> <app>`);
   firmware `fwupdmgr update` (rick runs it himself — needs a reboot).
 - After applying, run the same count again and report what is actually left — never claim "all N applied" unseen.
+- Success = dnf's last line `Complete!` and the recount is 0. `[RPM] file /lib/modules/<old kernel>/…: remove failed:
+  No such file or directory` lines are the OLD kernel's already-missing dirs being cleaned up — harmless, not a failure.
+  `dnf history list` prints NEWEST FIRST: pipe it through head, never tail. New kernel installed →
+  tell rick a reboot is needed (`dnf needs-restarting -r`).
 - A cancelled GNOME Software offline update ("Pending offline transaction has been invalidated") is harmless; just apply as above.
 
 ## 7. firewalld logs `ERROR: NAME_CONFLICT: new_policy_object(): 'docker-forwarding'`
