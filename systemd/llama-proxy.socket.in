@@ -1,0 +1,8 @@
+[Unit]
+Description=Local LLM endpoint :@PORT@ (starts llama.service on first connection)
+
+[Socket]
+ListenStream=127.0.0.1:@PORT@
+
+[Install]
+WantedBy=sockets.target

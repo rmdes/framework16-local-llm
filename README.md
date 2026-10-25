@@ -40,7 +40,7 @@ Measured on the RX 7700S, Qwen2.5-7B Q4_K_M, full offload (Fedora 44, llama.cpp 
 | **ROCm** | **1302 t/s** | 52 t/s | Long context / RAG / agentic coding (prefill-bound) — the all-rounder |
 | **Vulkan** | 1000 t/s | **54 t/s** | Short-prompt chat, zero-maintenance fallback |
 
-ROCm wins prefill by ~30%; decode is now near-parity (Vulkan +4%, down from +20% in June). The always-on service and `llama-go` both default to **ROCm**; Vulkan still decodes faster on small models (3B: +21%), so use `-b vulkan` for snappy 3B chat. History and the per-upgrade breakdown are in [docs/BENCHMARKS.md](docs/BENCHMARKS.md).
+ROCm wins prefill by ~30%; decode is now near-parity (Vulkan +4%, down from +20% in June). The on-demand service and `llama-go` both default to **ROCm**; Vulkan still decodes faster on small models (3B: +21%), so use `-b vulkan` for snappy 3B chat. History and the per-upgrade breakdown are in [docs/BENCHMARKS.md](docs/BENCHMARKS.md).
 
 ## Model capacity (8 GB VRAM)
 
@@ -62,7 +62,7 @@ bin/llama-go -m 3b --prompt "hi"  # one-shot with the 3B model
 bin/llama-bench-shootout 3b 7b 14b  # re-run the size sweep
 
 bin/llama-vulkan-mode             # temp-swap to Vulkan :8081, restore ROCm service on exit
-systemctl --user {status,restart,stop} llama   # manage the always-on service
+systemctl --user status llama-proxy.socket llama   # :8080 socket; the model starts on first request, stops after 15 min idle
 ```
 
 ## Use from opencode (or any OpenAI-compatible client)
@@ -78,7 +78,7 @@ pointed at its port. For opencode, add to `~/.config/opencode/opencode.json`:
       "npm": "@ai-sdk/openai-compatible",
       "name": "llama.cpp ROCm (RX 7700S · long-context)",
       "options": { "baseURL": "http://127.0.0.1:8080/v1", "apiKey": "local" },
-      "models": { "qwen2.5-7b": { "name": "Qwen2.5-7B · ROCm :8080 (always-on)", "limit": { "context": 32768, "output": 4096 } } }
+      "models": { "qwen2.5-7b": { "name": "Qwen2.5-7B · ROCm :8080 (on demand)", "limit": { "context": 32768, "output": 4096 } } }
     },
     "llama-vulkan": {
       "npm": "@ai-sdk/openai-compatible",
@@ -90,7 +90,7 @@ pointed at its port. For opencode, add to `~/.config/opencode/opencode.json`:
 }
 ```
 
-- `llama-rocm` (`:8080`) is the always-on systemd service — available immediately.
+- `llama-rocm` (`:8080`) is the systemd service — socket-activated, the model loads on the first request (~6 s) and stops after 15 min idle.
 - `llama-vulkan` (`:8081`) is on-demand: run `bin/llama-vulkan-mode` first. It frees the GPU
   from ROCm (8 GB fits only one 7B at a time) and restores the service when you exit.
 - The `model` id is just a label — llama-server serves whatever GGUF it has loaded; `apiKey`
@@ -109,7 +109,7 @@ bin/llama-vulkan-mode    temp-swap to Vulkan on :8081, auto-restore ROCm service
 bin/llama-bench-shootout ROCm-vs-Vulkan benchmark
 bin/_common.sh           shared config, paths, GPU pinning, model catalog
 config/models.conf       model catalog with measured ngl recommendations
-systemd/llama.service.in service template
+systemd/llama.service.in service template (+ llama-proxy.socket/.service: on-demand start, idle stop)
 docs/                    BENCHMARKS.md, HARDWARE.md (incl. Fedora-upgrade troubleshooting)
 tests/                   test_binary_broken.sh (stale-binary detection)
 ```

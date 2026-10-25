@@ -54,10 +54,9 @@ cmd_update(){
   local before; before="$(git -C "$LLAMA_SRC" rev-parse --short HEAD)"
   git -C "$LLAMA_SRC" pull --ff-only
   say "llama.cpp $before -> $(git -C "$LLAMA_SRC" rev-parse --short HEAD); rebuilding clean"
-  local was_active=0; systemctl --user is-active --quiet llama.service && was_active=1
+  systemctl --user stop llama.service 2>/dev/null || true   # on demand: the next request loads the new binary
   rm -rf "$BUILD_ROCM" "$BUILD_VULKAN"
   cmd_build both
-  [ "$was_active" = 1 ] && { say "restarting llama.service"; systemctl --user restart llama.service; }
   say "done — re-measure with: bin/llama-bench-shootout 7b"
 }
 
@@ -81,15 +80,20 @@ cmd_service(){
   esac; done
   [ -x "$(build_dir "$BACKEND")/bin/llama-server" ] || die "build $BACKEND first: ./setup.sh build $BACKEND"
   [ -f "$(model_path "$MODEL")" ] || die "model $MODEL not downloaded: ./setup.sh model $MODEL"
-  local unitdir="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user"; mkdir -p "$unitdir"
-  say "installing $unitdir/llama.service ($BACKEND, $MODEL, ctx=$CTX, :$PORT)"
-  sed -e "s|@LLAMAGO@|$REPO_DIR/bin/llama-go|g" -e "s|@BACKEND@|$BACKEND|g" \
-      -e "s|@MODEL@|$MODEL|g" -e "s|@CTX@|$CTX|g" -e "s|@PORT@|$PORT|g" \
-      "$REPO_DIR/systemd/llama.service.in" > "$unitdir/llama.service"
+  local unitdir="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user" u; mkdir -p "$unitdir"
+  # On demand: llama-proxy.socket owns :PORT, the first connection starts llama.service on PORT+10000,
+  # and the proxy exits after IDLE without a connection, which stops the model (StopWhenUnneeded).
+  local BACKPORT=$((PORT + 10000)) IDLE="${LLAMA_IDLE:-15min}"
+  say "installing on-demand llama.service ($BACKEND, $MODEL, ctx=$CTX) behind :$PORT, idle stop after $IDLE"
+  systemctl --user disable --now llama.service 2>/dev/null || true   # was always-on (WantedBy=default.target)
+  for u in llama.service llama-proxy.socket llama-proxy.service; do
+    sed -e "s|@LLAMAGO@|$REPO_DIR/bin/llama-go|g" -e "s|@BACKEND@|$BACKEND|g" -e "s|@MODEL@|$MODEL|g" \
+        -e "s|@CTX@|$CTX|g" -e "s|@PORT@|$PORT|g" -e "s|@BACKPORT@|$BACKPORT|g" -e "s|@IDLE@|$IDLE|g" \
+        "$REPO_DIR/systemd/$u.in" > "$unitdir/$u"
+  done
   systemctl --user daemon-reload
-  systemctl --user enable llama.service
-  systemctl --user restart llama.service   # not --now: that leaves an already-running old model in place
-  say "service started — http://127.0.0.1:$PORT  (enable boot-without-login: sudo loginctl enable-linger $USER)"
+  systemctl --user enable --now llama-proxy.socket
+  say "listening on http://127.0.0.1:$PORT — model loads on first request (enable boot-without-login: sudo loginctl enable-linger $USER)"
 }
 
 # ---- opencode sysadmin agent ----------------------------------------------
@@ -107,7 +111,6 @@ cmd_agent(){
   cat > "$unitdir/fw16-health.service" <<UNIT
 [Unit]
 Description=fw16 read-only health check (summarised by the local model)
-After=llama.service
 
 [Service]
 Type=oneshot
@@ -180,7 +183,8 @@ cmd_doctor(){
     elif binary_broken "$bin"; then echo "BROKEN (missing libs after upgrade) — rebuilt automatically on next llama-go, or: ./setup.sh build $b"
     else echo ok; fi
   done
-  echo -n "service: "; systemctl --user is-active llama.service 2>/dev/null || echo inactive
+  echo -n "endpoint socket: "; systemctl --user is-active llama-proxy.socket 2>/dev/null || echo inactive
+  echo -n "model (on demand): "; systemctl --user is-active llama.service 2>/dev/null || echo inactive
 }
 
 case "${1:-all}" in

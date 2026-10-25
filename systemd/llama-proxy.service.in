@@ -1,0 +1,7 @@
+[Unit]
+Description=Proxy :@PORT@ -> llama.service :@BACKPORT@, exits after @IDLE@ without a connection
+Requires=llama.service llama-proxy.socket
+After=llama.service
+
+[Service]
+ExecStart=/usr/lib/systemd/systemd-socket-proxyd --exit-idle-time=@IDLE@ 127.0.0.1:@BACKPORT@

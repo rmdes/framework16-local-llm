@@ -13,11 +13,11 @@ A thin, measured packaging of llama.cpp for the Framework 16 + Radeon RX 7700S (
 - `bin/llama-vulkan-mode` — convenience wrapper: stop ROCm service → run Vulkan on `:8081` → restore the service on exit (trap, NOT exec'd so the trap survives). For opencode's on-demand `llama-vulkan` provider.
 - `bin/llama-bench-shootout` — benchmark harness.
 - `config/models.conf` — the model catalog: `key|filename|url|ngl|note`. `ngl` values are **measured**, not guessed.
-- `systemd/llama.service.in` — `@PLACEHOLDER@` template; `setup.sh service` substitutes absolute paths.
+- `systemd/llama.service.in` + `llama-proxy.{socket,service}.in` — `@PLACEHOLDER@` templates; `setup.sh service` substitutes absolute paths. The model runs **on demand**: the socket owns `:8080`, the first connection starts `llama.service` on `:18080`, and `systemd-socket-proxyd --exit-idle-time=15min` stops it when idle (cold start ~6 s). Always-on, it sat idle 23 h/day holding ~8 G of RAM+swap.
 - `setup.sh` — orchestrator (`deps|build|update|model|service|all|doctor`).
 - `eval/` — sysadmin-agent model eval (`sysadmin_eval.py`, scenarios, `report.py`, allowlist self-check). Results: `docs/AGENT_EVAL.md`.
 - `agent/RUNBOOK.md` — this machine's known failure modes, fed to the local sysadmin agent. Every new incident → an entry → `./setup.sh agent`.
-- `agent/opencode-sysadmin.md` — the opencode Sysadmin agent: permission rules + rules prompt. `./setup.sh agent` installs it (+ runbook appended), the daily `fw16-health.timer` (`agent/health_check.py`) and the weekly `fw16-docker-prune.timer` (`agent/docker-prune`: keep the 2 newest `rmdes/*` builds, BuildKit cache capped at 10GB — Cloudron builds once filled 1.3T).
+- `agent/opencode-sysadmin.md` — the opencode Sysadmin agent: permission rules + rules prompt. `./setup.sh agent` installs it (+ runbook appended), the daily `fw16-health.timer` (`agent/health_check.py`: keeps `~/.local/state/fw16-sysadmin/OPEN.md`, notifies only on new issues / 3 days open / weekly — the daily ATTENTION popup was ignored 13 of 16 days) and the weekly `fw16-docker-prune.timer` (`agent/docker-prune`: keep the 2 newest `rmdes/*` builds, BuildKit cache capped at 10GB — Cloudron builds once filled 1.3T).
 - `agent/install-snapshots.sh` + `snapper.actions` — root, one-time: snapper pre/post snapshots around every dnf5 transaction.
 
 ## Hard-won facts — do not regress these
@@ -60,5 +60,6 @@ tests/test_binary_broken.sh       # stale-binary detection (needs gcc)
 eval/test_live_allowlist.py       # eval security boundary + grader
 tests/test_sysadmin_permissions.py  # opencode Sysadmin rules: read-only allowed, changes held
 bin/llama-go --prompt "ping"      # end-to-end generation
-systemctl --user status llama
+systemctl --user status llama-proxy.socket llama   # socket always active, model only while in use
+tests/test_health_issues.py       # health check: open-issue keys + notify cadence
 ```
