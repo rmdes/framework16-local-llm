@@ -52,10 +52,12 @@ with evidence before concluding — a runbook entry is a hypothesis, not a diagn
   they are current — ignore them. `flatpak update` saying "Nothing to update" is the final word.
   `fwupdmgr get-updates` → firmware ("No updates available" refers to firmware ONLY)
   Report each count separately. Any number above 0 means updates are waiting.
-- Fix, one source at a time: RPMs `sudo dnf upgrade -y` (snapper snapshots it automatically). It takes 15-60 min:
+- Fix, one source at a time: RPMs `sudo dnf upgrade -y | tail -n 15` (snapper snapshots it automatically). The tail
+  is REQUIRED: a big upgrade prints thousands of lines, overflows your context and the auto-summary then loses
+  the result (live test 2026-10-25: a successful upgrade was reported as "blocked"). It takes 15-60 min:
   ALWAYS call the shell tool with timeout 3600000 — the default 120000 kills dnf mid-run (an interrupted
   transaction leaves duplicate packages, see #4). Long silence during install = SELinux relabel, normal.
-  Flatpaks also get timeout 1800000.
+  Flatpaks also get timeout 1800000 and `| tail -n 15`.
   Flatpaks `flatpak update -y` (no sudo, NOT snapshotted — roll back one app with `flatpak update --commit=<old> <app>`);
   firmware `fwupdmgr update` (rick runs it himself — needs a reboot).
 - After applying, run the same count again and report what is actually left — never claim "all N applied" unseen.
