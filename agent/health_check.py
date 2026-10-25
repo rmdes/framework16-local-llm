@@ -62,15 +62,21 @@ def summarise(facts: str) -> str | None:
 
 
 JOURNAL_MIN = 10  # ponytail: errors/24h from one source before it counts; one-off errors stay in the report only
+HARMLESS = (  # journal errors the runbook already explains — never an open issue (they still show in the report)
+    "Ignoring duplicate name",  # RUNBOOK #10: two packages provide one D-Bus name; every dnf run reloads dbus
+    "NAME_CONFLICT: new_policy_object(): 'docker-forwarding'",  # RUNBOOK #7
+)
 
 
 def journal_sources() -> dict[str, int]:
-    out = run("journalctl -p err --since -24h -q -o json --output-fields=SYSLOG_IDENTIFIER,_COMM")
+    out = run("journalctl -p err --since -24h -q -o json --output-fields=SYSLOG_IDENTIFIER,_COMM,MESSAGE")
     counts: dict[str, int] = {}
     for line in out.splitlines():
         try:
             e = json.loads(line)
         except ValueError:
+            continue
+        if any(h in str(e.get("MESSAGE", "")) for h in HARMLESS):
             continue
         src = e.get("SYSLOG_IDENTIFIER") or e.get("_COMM") or "?"
         counts[src] = counts.get(src, 0) + 1
