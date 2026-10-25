@@ -47,6 +47,8 @@ permission:
     "pgrep *": allow
     "lspci *": allow
     "lsusb *": allow
+    "lsusb": allow
+    "lpstat *": allow
     "lsmod *": allow
     "modinfo *": allow
     "sensors *": allow

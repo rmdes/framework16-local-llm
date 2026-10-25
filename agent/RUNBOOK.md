@@ -88,3 +88,12 @@ with evidence before concluding — a runbook entry is a hypothesis, not a diagn
   then `sudo udevadm control --reload && sudo udevadm trigger`.
 - Never: create the `resolve` group or swap in another group (activates MODE=0777 on all HID devices — keyboards,
   fingerprint reader), or edit the file in /usr/lib (installer overwrites it).
+
+## 9. journal floods with `hp[…]: … unable to open hp:/usb/…` / `open device failed stat=12 … will retry in 30 seconds`
+- Cause: a print job was sent to an HP USB printer that is not plugged in or is off; CUPS's hp backend retries
+  every 30 s until the job goes. Seen 2026-10-24: browser job to the old Photosmart 7700 (rick prints on the
+  Brother HL-L2400DWE now). Not a driver, permission or USB problem.
+- Check: `lpstat -o` (stuck jobs), `lsusb` (is an HP device present?), `journalctl -t hp -q --since today`.
+- No jobs left and no new hp lines → already over, nothing to do.
+- Fix: tell rick which job is stuck; he cancels it (`cancel <job-id>`) or plugs the printer in.
+- Never: restart cups, delete the printer queue, or change USB/udev permissions for this.

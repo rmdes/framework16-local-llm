@@ -51,6 +51,7 @@ ALLOW = [
     "journalctl -u NetworkManager -n 50 --no-pager", "systemctl --user status llama.service",
     "systemctl --failed", "ldd /usr/lib64/libvulkan_radeon.so", "rpm -qa | grep amdgpu",
     "dnf check-update", "dnf history info 43", "dnf repoquery --installed --duplicates",
+    "lpstat -o", "lpstat -p", "lsusb",
     "resolvectl status", "ip route get 100.64.0.23", "ip rule", "nmcli device status", "rfkill list",
     "mullvad dns get", "tailscale status", "ping -c 3 1.1.1.1", "dig fedoraproject.org",
     "cat ~/.config/aura-glass/repo-path", "git -C /home/rick/code/fedora/aura-glass status --porcelain",
