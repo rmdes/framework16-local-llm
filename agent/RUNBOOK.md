@@ -103,3 +103,10 @@ with evidence before concluding — a runbook entry is a hypothesis, not a diagn
   `org.freedesktop.Notifications` (dunst vs GNOME Shell), `org.freedesktop.FileManager1` (Thunar vs Nautilus),
   `org.gnome.Extensions`. Comes from having Hyprland and GNOME tools side by side.
 - No action. Never delete or edit files in /usr/share/dbus-1/services.
+
+## 11. `packagekit.service: start operation timed out` / failed unit `packagekit.service`
+- Cause: harmless if its start time (`journalctl -u packagekit`) matches the end of a dnf transaction
+  (`dnf history list | head -n 3`, or the snapper post snapshot). dnf pokes PackageKit when it finishes and
+  PackageKit times out while the rpmdb is still busy. It starts fine on the next request.
+- Fix: `sudo systemctl reset-failed packagekit.service` (or just reboot). Escalate only if it fails with no dnf
+  run nearby.
